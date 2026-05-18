@@ -16,6 +16,18 @@ apply_rtl_patch() {
     local count=0
     local skipped=0
 
+    # In newer Claude Desktop (1.x+), .vite/build/*.js are Electron preload scripts:
+    # they run in the claude.ai renderer context where document IS defined.
+    # In older Claude Desktop (0.x), .vite/build/*.js were Node.js main-process files.
+    # The IIFE's `typeof document === 'undefined'` guard makes it safe for both.
+    # Preload scripts are the correct injection point because the actual chat UI
+    # is served remotely from claude.ai, not bundled in .vite/renderer/.
+    local search_dir="$contents_dir/.vite/build"
+    if [ ! -d "$search_dir" ]; then
+        echo "❌ Build directory not found: $search_dir — asar structure may have changed"
+        return 1
+    fi
+
     while IFS= read -r js_file; do
         if grep -q "CLAUDE RTL PATCH START" "$js_file" 2>/dev/null; then
             skipped=$((skipped + 1))
@@ -27,10 +39,10 @@ apply_rtl_patch() {
         else
             rm -f "$tmp"
         fi
-    done < <(find "$contents_dir/.vite/build" -name "*.js" -type f 2>/dev/null | sort)
+    done < <(find "$search_dir" -name "*.js" -type f 2>/dev/null | sort)
 
     if [ "$count" -eq 0 ] && [ "$skipped" -eq 0 ]; then
-        echo "❌ No .js files found in $contents_dir/.vite/build/ — asar structure may have changed"
+        echo "❌ No .js files found in $search_dir — asar structure may have changed"
         return 1
     fi
 
