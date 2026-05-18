@@ -23,6 +23,10 @@ if ! is_fedora_based; then
     exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=patches/apply-rtl-patch.sh
+source "$SCRIPT_DIR/patches/apply-rtl-patch.sh"
+
 # Check for root/sudo
 IS_SUDO=false
 if [ "$EUID" -eq 0 ]; then
@@ -296,6 +300,9 @@ echo "Downloading Main Window Fix Assets"
 cd app.asar.contents
 wget -O- https://github.com/emsi/claude-desktop/raw/refs/heads/main/assets/main_window.tgz | tar -zxvf -
 cd ..
+
+echo "🔤 Applying RTL (Hebrew/BiDi) fix..."
+apply_rtl_patch "app.asar.contents"
 
 npx asar pack app.asar.contents app.asar || { echo "asar pack failed"; exit 1; }
 
